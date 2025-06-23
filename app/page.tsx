@@ -1,9 +1,15 @@
-"use client"
-import { useEffect, useRef, useState } from "react";
+'use client';
+
+import { useEffect, useState } from "react";
 import confetti from "canvas-confetti";
-import useSound from "use-sound";
 
 type Difficulty = "easy" | "medium" | "hard";
+type LeaderboardEntry = {
+  score: number;
+  time: number;
+  date: string;
+  level: string;
+};
 
 export default function Home() {
   const [score, setScore] = useState(0);
@@ -13,10 +19,6 @@ export default function Home() {
   const [playing, setPlaying] = useState(false);
   const [result, setResult] = useState<"win" | "lose" | null>(null);
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
-
-  const [playClick] = useSound("/sounds/click.mp3", { volume: 0.5 });
-  const [playWin] = useSound("/sounds/win.mp3", { volume: 0.6 });
-  const [playLose] = useSound("/sounds/lose.mp3", { volume: 0.6 });
 
   const getTargetScore = () => {
     switch (difficulty) {
@@ -30,7 +32,6 @@ export default function Home() {
   };
   const targetScore = getTargetScore();
 
-  // Timer and win-check logic
   useEffect(() => {
     if (!playing) return;
 
@@ -40,7 +41,6 @@ export default function Home() {
           clearInterval(countdown);
           triggerCelebration();
           setResult("win");
-          playWin();
           setPlaying(false);
           return t;
         }
@@ -49,10 +49,8 @@ export default function Home() {
           if (score >= targetScore) {
             triggerCelebration();
             setResult("win");
-            playWin();
           } else {
             setResult("lose");
-            playLose();
           }
           setPlaying(false);
           return 0;
@@ -62,9 +60,8 @@ export default function Home() {
     }, 1000);
 
     return () => clearInterval(countdown);
-  }, [playing, score]);
+  }, [playing, score, targetScore]);
 
-  // Target movement
   useEffect(() => {
     let mover: NodeJS.Timeout;
     if (playing) {
@@ -76,9 +73,8 @@ export default function Home() {
     return () => clearInterval(mover);
   }, [playing]);
 
-  // Leaderboard save
   useEffect(() => {
-    if (result && score > 0) {
+    if (result && score > 0 && typeof window !== "undefined") {
       const oldScores = JSON.parse(localStorage.getItem("leaderboard") || "[]");
       const newEntry = {
         score,
@@ -89,11 +85,10 @@ export default function Home() {
       const updated = [newEntry, ...oldScores].slice(0, 5);
       localStorage.setItem("leaderboard", JSON.stringify(updated));
     }
-  }, [result]);
+  }, [result, score, timer, difficulty]);
 
   const handleClick = () => {
     if (!playing) return;
-    playClick();
     setScore((s) => s + 1);
     setX(Math.floor(Math.random() * 80));
     setY(Math.floor(Math.random() * 80));
@@ -131,8 +126,7 @@ export default function Home() {
   };
 
   return (
-    <div className="relative flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-blue-50 to-white text-center p-4 overflow-hidden bg-gradient-to-b from-blue-100 to-white
-">
+    <div className="relative flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-blue-50 to-white text-center p-4 overflow-hidden">
       <h1 className="text-3xl font-bold mb-2">🎯 Click the Target</h1>
 
       <p className="text-sm text-gray-600 mb-4">
@@ -140,7 +134,6 @@ export default function Home() {
         <span className="font-semibold text-blue-600">30 seconds</span> to win!
       </p>
 
-      {/* Difficulty Buttons */}
       {!playing && result === null && (
         <div className="mb-4">
           <label className="text-sm font-medium mr-2">Difficulty:</label>
@@ -158,11 +151,9 @@ export default function Home() {
         </div>
       )}
 
-      {/* Timer + Score */}
       <p className="mb-1 text-xl">⏱️ Time Left: {timer}s</p>
       <p className="mb-4 text-xl">🏆 Score: {score}</p>
 
-      {/* Start / Restart Button */}
       {!playing && (
         <button
           className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition"
@@ -172,7 +163,6 @@ export default function Home() {
         </button>
       )}
 
-      {/* Target */}
       {playing && (
         <div
           className="absolute w-16 h-16 bg-red-500 rounded-full cursor-pointer"
@@ -187,7 +177,6 @@ export default function Home() {
         />
       )}
 
-      {/* Result */}
       {!playing && result === "win" && (
         <>
           <div className="text-green-600 text-xl mt-6 animate-bounce">🎉 You Win!</div>
@@ -201,21 +190,21 @@ export default function Home() {
         <div className="text-red-600 text-xl mt-6">😢 You lost! Try again!</div>
       )}
 
-      {/* Leaderboard */}
       {!playing && (
         <div className="mt-8 w-full max-w-md">
           <h2 className="text-xl font-semibold mb-2">🏆 Leaderboard</h2>
           <ul className="bg-white rounded-lg shadow p-4 space-y-2 text-left">
             {typeof window !== "undefined" &&
-  JSON.parse(localStorage.getItem("leaderboard") || "[]").map((entry: any, idx: number) => (
-    <li key={idx} className="text-sm">
-      {idx + 1}. <strong>{entry.score}</strong> clicks in{" "}
-      <strong>{entry.time}s</strong> (
-      <span className="capitalize">{entry.level}</span>) —{" "}
-      <span className="text-gray-500">{entry.date}</span>
-    </li>
-  ))}
-
+              JSON.parse(localStorage.getItem("leaderboard") || "[]").map(
+                (entry: LeaderboardEntry, idx: number) => (
+                  <li key={idx} className="text-sm">
+                    {idx + 1}. <strong>{entry.score}</strong> clicks in{" "}
+                    <strong>{entry.time}s</strong> (
+                    <span className="capitalize">{entry.level}</span>) —{" "}
+                    <span className="text-gray-500">{entry.date}</span>
+                  </li>
+                )
+              )}
           </ul>
         </div>
       )}
